@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections;
-
+using System.Threading.Tasks;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
@@ -324,7 +324,37 @@ namespace Org.BouncyCastle.X509
             return GenerateJcaObject(tbsCert, (AlgorithmIdentifier)signatureCalculatorFactory.AlgorithmDetails, ((IBlockResult)streamCalculator.GetResult()).Collect());
 		}
 
-		private X509Certificate GenerateJcaObject(
+
+        // TODO: Abstract out common code to another method
+        /// <summary>
+        /// Generate a new X509Certificate using the passed in SignatureCalculator.
+        /// </summary>
+        /// <param name="signatureCalculatorFactory">A signature calculator factory with the necessary algorithm details.</param>
+        /// <returns>An X509Certificate.</returns>
+        public async Task<X509Certificate> GenerateAsync(ISignatureFactory signatureCalculatorFactory)
+        {
+            tbsGen.SetSignature((AlgorithmIdentifier)signatureCalculatorFactory.AlgorithmDetails);
+
+            if (!extGenerator.IsEmpty)
+            {
+                tbsGen.SetExtensions(extGenerator.Generate());
+            }
+
+            TbsCertificateStructure tbsCert = tbsGen.GenerateTbsCertificate();
+
+            IStreamCalculator streamCalculator = signatureCalculatorFactory.CreateCalculator();
+
+            byte[] encoded = tbsCert.GetDerEncoded();
+
+            streamCalculator.Stream.Write(encoded, 0, encoded.Length);
+
+            Platform.Dispose(streamCalculator.Stream);
+
+            var signedBits = await streamCalculator.GetResultAsync();
+            return GenerateJcaObject(tbsCert, (AlgorithmIdentifier)signatureCalculatorFactory.AlgorithmDetails, ((IBlockResult)signedBits).Collect());
+        }
+
+        private X509Certificate GenerateJcaObject(
 			TbsCertificateStructure	tbsCert,
 			AlgorithmIdentifier     sigAlg,
 			byte[]					signature)

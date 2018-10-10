@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
-
+using System.Threading.Tasks;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.CryptoPro;
 using Org.BouncyCastle.Asn1.Nist;
@@ -412,6 +412,11 @@ namespace Org.BouncyCastle.Crypto.Operators
         {
             return new SigResult(sig);
         }
+
+        public Task<object> GetResultAsync()
+        {
+            return Task.FromResult((object)new SigResult(sig));
+        }
     }
 
     internal class SigResult : IBlockResult
@@ -508,6 +513,11 @@ namespace Org.BouncyCastle.Crypto.Operators
         public object GetResult()
         {
             return new VerifierResult(sig);
+        }
+
+        public Task<object> GetResultAsync()
+        {
+            return Task.FromResult((object)new VerifierResult(sig));
         }
     }
 

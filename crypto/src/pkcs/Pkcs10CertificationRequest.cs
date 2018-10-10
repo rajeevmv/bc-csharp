@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.Threading.Tasks;
 
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.CryptoPro;
@@ -184,7 +185,28 @@ namespace Org.BouncyCastle.Pkcs
 		{
 		}
 
-		public Pkcs10CertificationRequest(
+        public static async Task<Pkcs10CertificationRequest> CreatePkcs10CertificationRequest(
+            ISignatureFactory signatureFactory,
+            X509Name subject,
+            AsymmetricKeyParameter publicKey,
+            Asn1Set attributes)
+        {
+            if (signatureFactory == null)
+                throw new ArgumentNullException("signatureFactory");
+            if (subject == null)
+                throw new ArgumentNullException("subject");
+            if (publicKey == null)
+                throw new ArgumentNullException("publicKey");
+            if (publicKey.IsPrivate)
+                throw new ArgumentException("expected public key", "publicKey");
+
+            var newObj = new Pkcs10CertificationRequest();
+            await newObj.InitAsync(signatureFactory, subject, publicKey, attributes);
+
+            return newObj;
+        }
+
+        public Pkcs10CertificationRequest(
 			byte[] encoded)
 			: base((Asn1Sequence) Asn1Object.FromByteArray(encoded))
 		{
@@ -287,6 +309,33 @@ namespace Org.BouncyCastle.Pkcs
             // Generate Signature.
             sigBits = new DerBitString(((IBlockResult)streamCalculator.GetResult()).Collect());
         }
+
+        //TODO: Abstract out common code to another method
+        private async Task InitAsync(
+            ISignatureFactory signatureFactory,
+            X509Name subject,
+            AsymmetricKeyParameter publicKey,
+            Asn1Set attributes)
+        {
+            this.sigAlgId = (AlgorithmIdentifier)signatureFactory.AlgorithmDetails;
+
+            SubjectPublicKeyInfo pubInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(publicKey);
+
+            this.reqInfo = new CertificationRequestInfo(subject, pubInfo, attributes);
+
+            IStreamCalculator streamCalculator = signatureFactory.CreateCalculator();
+
+            byte[] reqInfoData = reqInfo.GetDerEncoded();
+
+            streamCalculator.Stream.Write(reqInfoData, 0, reqInfoData.Length);
+
+            Platform.Dispose(streamCalculator.Stream);
+
+            // Generate Signature.
+            var signedBits = await streamCalculator.GetResultAsync();
+            sigBits = new DerBitString(((IBlockResult)signedBits).Collect());
+        }
+
 
         //        internal Pkcs10CertificationRequest(
         //        	Asn1InputStream seqStream)

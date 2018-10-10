@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Org.BouncyCastle.Crypto
 {
@@ -19,5 +20,12 @@ namespace Org.BouncyCastle.Crypto
         /// </summary>
         /// <returns>The result of processing the stream.</returns>
         Object GetResult();
+
+        /// <summary>
+        /// Return the result of processing the stream. This value is only available once the stream
+        /// has been closed.
+        /// </summary>
+        /// <returns>The result of processing the stream.</returns>
+        Task<Object> GetResultAsync();
     }
 }
